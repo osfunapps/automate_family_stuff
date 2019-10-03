@@ -4,7 +4,7 @@ const tools = require('os-tools');
 const self = module.exports = {
 
     fillTargetAudience: async function (page, appDictList, onlyAbove18) {
-        for (let i = 6; i < appDictList.length; i++) {
+        for (let i = 0; i < appDictList.length; i++) {
             console.log("--------------------------------------------------------------")
             console.log(i + "/" + (appDictList.length - 1).toString())
             console.log("working on: " + appDictList[i].appName)
@@ -61,10 +61,12 @@ async function fillIndividualAppBelow18(page, app) {
 
 async function fillTargetAge(page, appName, onlyAbove18) {
     await ph.waitForSelectorWithText(page, 'div', appName)
-    let startBtn = await ph.getElementByText(page, 'div', 'Start', true, false, true)
+    let startBtn = await ph.getElementByText(page, 'div', "Start again", true, false, true)
+    let startBtn2 = await ph.getElementByText(page, 'div', "Start", true, false, true)
     // let startBtn = await ph.waitForSelectorWithText(page, 'button', 'start', 1000, 4000)
-    if (startBtn !== undefined) {
-        await ph.clickOnElement(page, startBtn, 3500)
+    let eleToClick = startBtn !== undefined? startBtn: startBtn2
+    if (eleToClick !== undefined) {
+        await ph.clickOnElement(page, eleToClick, 2000)
         try {
             await ph.clickOnElementWithAdjacentLabel(page, '18 and over')
             if (!onlyAbove18) {
