@@ -3,30 +3,53 @@ const tools = require('os-tools');
 
 const self = module.exports = {
 
-    fillTargetAudience: async function (page, appDictList) {
-        for (let i = 0; i < appDictList.length; i++) {
+    fillTargetAudience: async function (page, appDictList, onlyAbove18) {
+        for (let i = 6; i < appDictList.length; i++) {
             console.log("--------------------------------------------------------------")
-            console.log(i + "/" + (appDictList.length-1).toString())
+            console.log(i + "/" + (appDictList.length - 1).toString())
             console.log("working on: " + appDictList[i].appName)
-            await fillIndividualApp(page, appDictList[i])
+            if (onlyAbove18) {
+                await fillIndividualAppOnlyAbove18(page, appDictList[i])
+            } else {
+                await fillIndividualAppBelow18(page, appDictList[i])
+            }
         }
-        console.log('Done updating ' + (appDictList.length-1).toString() + ' apps')
+        console.log('Done updating ' + (appDictList.length - 1).toString() + ' apps')
     }
 };
 
-async function fillIndividualApp(page, app) {
+async function fillIndividualAppOnlyAbove18(page, app) {
 
     // fix link. Wait 2 seconds until page fully loaded
     let appContentUrl = app.appLink.replace('AppDashboardPlace', 'AppContentCenterPlace')
     await ph.navigateTo(page, appContentUrl, null, "div[role='article']")
-    let firstPageExists = await fillTargetAge(page, app.appName);
+    let firstPageExists = await fillTargetAge(page, app.appName, true);
+    if (!firstPageExists) {
+        return
+    }
+
+    // click ok on summary
+    try {
+        await ph.clickOnElementContainsText(page, 'div', 'Submit', true, false, true, true, 2000)
+    } catch (e) {
+        await fillAdsPage(page, 'aptForKidsRadioButton', 'No');
+        await ph.clickOnElementContainsText(page, 'div', 'Submit', true, false, true, true, 2000)
+    }
+}
+
+async function fillIndividualAppBelow18(page, app) {
+
+    // fix link. Wait 2 seconds until page fully loaded
+    let appContentUrl = app.appLink.replace('AppDashboardPlace', 'AppContentCenterPlace')
+    await ph.navigateTo(page, appContentUrl, null, "div[role='article']")
+    let firstPageExists = await fillTargetAge(page, app.appName, false);
     if (!firstPageExists) {
         return
     }
 
     await fillAppDetails(page);
-    let processFailed = await fillAdsPage(page);
-    if(!processFailed){
+    let processFailed = await fillAdsPage(page, 'adsNetworkRadioButton', 'Yes');
+    if (!processFailed) {
         return
     }
     await fillStorePresence(page);
@@ -36,7 +59,7 @@ async function fillIndividualApp(page, app) {
 }
 
 
-async function fillTargetAge(page, appName) {
+async function fillTargetAge(page, appName, onlyAbove18) {
     await ph.waitForSelectorWithText(page, 'div', appName)
     let startBtn = await ph.getElementByText(page, 'div', 'Start', true, false, true)
     // let startBtn = await ph.waitForSelectorWithText(page, 'button', 'start', 1000, 4000)
@@ -44,11 +67,13 @@ async function fillTargetAge(page, appName) {
         await ph.clickOnElement(page, startBtn, 3500)
         try {
             await ph.clickOnElementWithAdjacentLabel(page, '18 and over')
-            await ph.clickOnElementWithAdjacentLabel(page, '16-17')
-            await ph.clickOnElementWithAdjacentLabel(page, '13-15')
-            await ph.clickOnElementWithAdjacentLabel(page, '9-12')
-            await ph.clickOnElementWithAdjacentLabel(page, '6-8')
-            await ph.clickOnElementWithAdjacentLabel(page, '5 and under')
+            if (!onlyAbove18) {
+                await ph.clickOnElementWithAdjacentLabel(page, '16-17')
+                await ph.clickOnElementWithAdjacentLabel(page, '13-15')
+                await ph.clickOnElementWithAdjacentLabel(page, '9-12')
+                await ph.clickOnElementWithAdjacentLabel(page, '6-8')
+                await ph.clickOnElementWithAdjacentLabel(page, '5 and under')
+            }
         } catch (e) {
 
         }
@@ -56,6 +81,9 @@ async function fillTargetAge(page, appName) {
         try {
             await ph.clickOnElementContainsText(page, 'button', 'OK')
         } catch (e) {
+            if (onlyAbove18) {
+                return true
+            }
             await tools.promptUser('It seems like this app needs special attention. Notify me when you want to skip to the next app (Ok)')
             return false
         }
@@ -78,12 +106,12 @@ async function fillAppDetails(page) {
     await ph.clickOnSelector(page, "button[aria-label='Next']", 1000)
 }
 
-async function fillAdsPage(page) {
-    let radioBtns = await ph.getElements(page, "input[name='adsNetworkRadioButton']")
+async function fillAdsPage(page, radioName, yesOrNo) {
+    let radioBtns = await ph.getElements(page, "input[name='" + radioName + "']")
     for (let i = 0; i < radioBtns.length; i++) {
         let radioLabel = await ph.getNextSibling(page, radioBtns[i])
         let radioText = await ph.getInnerHTML(page, radioLabel)
-        if (radioText === 'Yes') {
+        if (radioText === yesOrNo) {
             try {
                 await ph.clickOnElement(page, radioBtns[i])
             } catch (e) {
