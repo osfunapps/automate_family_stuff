@@ -89,6 +89,7 @@ async function fillAdsPage(page) {
             } catch (e) {
                 await tools.promptUser('It seems like this app needs special attention. Notify me when you want to skip to the next app (Ok)')
                 return false
+
             }
             break
         }
